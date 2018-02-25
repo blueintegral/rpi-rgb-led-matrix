@@ -1,0 +1,13 @@
+
+>>sudo raspi-config
+make sure i2c is enabled
+then run >>gpio load i2c
+
+
+
+Install WiringPi
+Use the modded adpater to connect to the display
+python bindings run way too slow
+modify code in demo-main.cc
+modify makefile to include the flag to compile with wiringPi
+
