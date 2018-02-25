@@ -209,8 +209,8 @@ public:
     const int cent_y = canvas()->height() / 2;
     
     struct timeb timer_msec;
-    long long int start_msec;
-    long long int current_msec; 
+    long long int start_msec = 0;
+    long long int current_msec = 0; 
     if (!ftime(&timer_msec)) {
 	current_msec = ((long long int) timer_msec.time) * 1000ll + (long long int) timer_msec.millitm;
     } else {
@@ -321,8 +321,8 @@ public:
            int32_t v2;
    	   float v;
 	   for(int i = 0; i<N_GRAINS; i++){
-	      grain[i].vx += ax + random(az2);
-	      grain[i].vy += ay + random(az2);
+	      grain[i].vx += ax + (rand() % az2);
+	      grain[i].vy += ay + (rand() % az2);
 	      v2 = (int32_t)grain[i].vx*grain[i].vx+(int32_t)grain[i].vy*grain[i].vy;
 	      if(v2 > 65536) {
 	      	v = sqrt((float)v2);
@@ -332,11 +332,94 @@ public:
 	   
 	   }	
 
-	      
+	 uint8_t        i, bytes, oldidx, newidx, delta;
+  int16_t        newx, newy;
+  //const uint8_t *ptr = remap;
  
- 
- 
+  for(i=0; i<N_GRAINS; i++) {
+    newx = grain[i].x + grain[i].vx; // New position in grain space
+    newy = grain[i].y + grain[i].vy;
+    if(newx > MAX_X) {               // If grain would go out of bounds
+      newx         = MAX_X;          // keep it inside, and
+      grain[i].vx /= -2;             // give a slight bounce off the wall
+    } else if(newx < 0) {
+      newx         = 0;
+      grain[i].vx /= -2;
     }
+    if(newy > MAX_Y) {
+      newy         = MAX_Y;
+      grain[i].vy /= -2;
+    } else if(newy < 0) {
+      newy         = 0;
+      grain[i].vy /= -2;
+    }
+ 
+    oldidx = (grain[i].y/256) * WIDTH + (grain[i].x/256); // Prior pixel #
+    newidx = (newy      /256) * WIDTH + (newx      /256); // New pixel #
+    if((oldidx != newidx) && // If grain is moving to a new pixel...
+        img[newidx]) {       // but if that pixel is already occupied...
+      delta = abs(newidx - oldidx); // What direction when blocked?
+      if(delta == 1) {            // 1 pixel left or right)
+        newx         = grain[i].x;  // Cancel X motion
+        grain[i].vx /= -2;          // and bounce X velocity (Y is OK)
+        newidx       = oldidx;      // No pixel change
+      } else if(delta == WIDTH) { // 1 pixel up or down
+        newy         = grain[i].y;  // Cancel Y motion
+        grain[i].vy /= -2;          // and bounce Y velocity (X is OK)
+        newidx       = oldidx;      // No pixel change
+      } else { // Diagonal intersection is more tricky...
+        // Try skidding along just one axis of motion if possible (start w/
+        // faster axis).  Because we've already established that diagonal
+        // (both-axis) motion is occurring, moving on either axis alone WILL
+        // change the pixel index, no need to check that again.
+        if((abs(grain[i].vx) - abs(grain[i].vy)) >= 0) { // X axis is faster
+          newidx = (grain[i].y / 256) * WIDTH + (newx / 256);
+          if(!img[newidx]) { // That pixel's free!  Take it!  But...
+            newy         = grain[i].y; // Cancel Y motion
+            grain[i].vy /= -2;         // and bounce Y velocity
+          } else { // X pixel is taken, so try Y...
+            newidx = (newy / 256) * WIDTH + (grain[i].x / 256);
+            if(!img[newidx]) { // Pixel is free, take it, but first...
+              newx         = grain[i].x; // Cancel X motion
+              grain[i].vx /= -2;         // and bounce X velocity
+            } else { // Both spots are occupied
+              newx         = grain[i].x; // Cancel X & Y motion
+              newy         = grain[i].y;
+              grain[i].vx /= -2;         // Bounce X & Y velocity
+              grain[i].vy /= -2;
+              newidx       = oldidx;     // Not moving
+            }
+          }
+        } else { // Y axis is faster, start there
+          newidx = (newy / 256) * WIDTH + (grain[i].x / 256);
+          if(!img[newidx]) { // Pixel's free!  Take it!  But...
+            newx         = grain[i].x; // Cancel X motion
+            grain[i].vy /= -2;         // and bounce X velocity
+          } else { // Y pixel is taken, so try X...
+            newidx = (grain[i].y / 256) * WIDTH + (newx / 256);
+            if(!img[newidx]) { // Pixel is free, take it, but first...
+              newy         = grain[i].y; // Cancel Y motion
+              grain[i].vy /= -2;         // and bounce Y velocity
+            } else { // Both spots are occupied
+              newx         = grain[i].x; // Cancel X & Y motion
+              newy         = grain[i].y;
+              grain[i].vx /= -2;         // Bounce X & Y velocity
+              grain[i].vy /= -2;
+              newidx       = oldidx;     // Not moving
+            }
+          }
+        }
+      }
+    }
+    grain[i].x  = newx; // Update grain position
+    grain[i].y  = newy;
+    img[oldidx] = 0;    // Clear old spot (might be same as new, that's OK)
+    img[newidx] = 255;  // Set new spot
+  }     
+ 
+     
+ 
+    
       //
       
       
@@ -361,7 +444,7 @@ public:
           }
         }
       }
-    }
+  } 
   }
 
 private:
