@@ -15,6 +15,11 @@
 #include <errno.h>
 #include <wiringPiI2C.h>
 //
+//timing stuff
+#include <time.h>
+#include <sys/timeb.h>
+#include <sys/time.h>
+//
 #include <cstring>
 #include <assert.h>
 #include <getopt.h>
@@ -203,6 +208,17 @@ public:
     const int cent_x = canvas()->width() / 2;
     const int cent_y = canvas()->height() / 2;
     
+    struct timeb timer_msec;
+    long long int start_msec;
+    long long int current_msec; 
+    if (!ftime(&timer_msec)) {
+	current_msec = ((long long int) timer_msec.time) * 1000ll + (long long int) timer_msec.millitm;
+    } else {
+    	current_msec = -1;
+    }
+   // printf("%lld ms since epoch\n", timestamp_msec);
+
+
     //Setup parameters of the sand
     #define N_GRAINS 20
     #define WIDTH 64
@@ -273,29 +289,60 @@ public:
     while (running() && !interrupt_received) {
       ++rotation;
       usleep(14 * 1000);
-      //get accel data
+      //here we go, calc next img for display
+      //limit frame rate
+      uint32_t t;
+      if (!ftime(&timer_msec)){
+      	current_msec = ((long long int) timer_msec.time) * 1000ll + (long long int) timer_msec.millitm;
+      } else {
+      	current_msec = -1;
+      }
+      while(((t = (current_msec - start_msec) - prevTime)) < (1000000L / MAX_FPS));
+      prevTime = t;
+      
+      //display from previous pass 
+      
+
+      //read accel data
       if(wiringPiI2CReadReg8(fd, STATUS_REG) & 0x08){
            x = (wiringPiI2CReadReg8(fd, X_REG_HI) << 8) | wiringPiI2CReadReg8(fd, X_REG_LO);
 	   y = (wiringPiI2CReadReg8(fd, Y_REG_HI) << 8) | wiringPiI2CReadReg8(fd, Y_REG_LO);
 	   z = (wiringPiI2CReadReg8(fd, Z_REG_HI) << 8) | wiringPiI2CReadReg8(fd, Z_REG_LO);
-           //convert data
-	   /*
-	   if(x > 32767){
-	  	x -= 65536; 
-	   }
-	   if(y > 32767){
-	   	y -= 65536;
-	   }
-	   if(z > 32767){
-	   	z -= 65536;
-	   }
-	   */
+      }	   
+	   //convert data
+	   int16_t ax = -y / 256;
+	   int16_t ay = -x / 256;
+	   int16_t az = abs(z) / 2048;
+	   az = (az >= 3) ? 1 : 4 - az;
+	   ax -= az;
+	   ay -= az;
+	   int16_t az2 = az * 2 + 1;
 
-	   printf("X: %d", x);
-	   printf("Y: %d", y);
-	   printf("Z: %d", z);
-      }
+           int32_t v2;
+   	   float v;
+	   for(int i = 0; i<N_GRAINS; i++){
+	      grain[i].vx += ax + random(az2);
+	      grain[i].vy += ay + random(az2);
+	      v2 = (int32_t)grain[i].vx*grain[i].vx+(int32_t)grain[i].vy*grain[i].vy;
+	      if(v2 > 65536) {
+	      	v = sqrt((float)v2);
+		grain[i].vx = (int)(256.0*(float)grain[i].vx/v);
+		grain[i].vy = (int)(256.0*(float)grain[i].vy/v);
+	      }
+	   
+	   }	
+
+	      
+ 
+ 
+ 
+    }
       //
+      
+      
+      
+      
+      
       rotation %= 360;
       for (int x = min_rotate; x < max_rotate; ++x) {
         for (int y = min_rotate; y < max_rotate; ++y) {
