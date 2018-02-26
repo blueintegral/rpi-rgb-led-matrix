@@ -263,8 +263,13 @@ public:
     wiringPiI2CWriteReg8(fd, CNTRL_REG_4, r);
     //
 
-    //init screen to be blank
-    off_screen_canvas_->Fill(0,0,0);
+    //init screen with initial grain locations
+    for(int m = 0; m < 64; ++m){
+    	for(int n = 0; n < 64; ++n){
+		off_screen_canvas_->SetPixel(m, n, 0, 0, img[m+n]);
+	}
+    }
+    //off_screen_canvas_->Fill(0,0,255);
 
 	//this next section is the equivalent of the loop() function in arduino
     while (running() && !interrupt_received) {
@@ -403,7 +408,7 @@ public:
   	//Now that we've constructed the image, loop and update it at the top of the next loop for timing reasons
  	for (int m = 0; m < 64 ; ++m){
 		for (int n = 0; n  < 64; ++n){
-			off_screen_canvas_->SetPixel(img[x], img[y], 0, 0, 255);
+			off_screen_canvas_->SetPixel(m, n, 0, 0, img[n+m]);
 		}
 	}
     } 
