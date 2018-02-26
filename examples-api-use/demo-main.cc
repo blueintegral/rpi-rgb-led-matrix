@@ -196,18 +196,12 @@ public:
 // Simple class that generates a rotating block on the screen.
 class RotatingBlockGenerator : public ThreadedCanvasManipulator {
 public:
-  RotatingBlockGenerator(Canvas *m) : ThreadedCanvasManipulator(m) {}
-
-  uint8_t scale_col(int val, int lo, int hi) {
-    if (val < lo) return 0;
-    if (val > hi) return 255;
-    return 255 * (val - lo) / (hi - lo);
+  RotatingBlockGenerator(RGBMatrix *m) : ThreadedCanvasManipulator(m), matrix_(m) {
+	off_screen_canvas_ = matrix_->CreateFrameCanvas();
   }
 
   void Run() {
-    const int cent_x = canvas()->width() / 2;
-    const int cent_y = canvas()->height() / 2;
-    
+    //This is the equivalent of the setup() function in arduino
     struct timeb timer_msec;
     long long int start_msec = 0;
     long long int current_msec = 0; 
@@ -233,7 +227,6 @@ public:
 	int16_t vx, vy; //velocity
     } grain[N_GRAINS];
     uint32_t prevTime = 0; //for FPS throttle
-    uint8_t backbuffer = 0; //index for double buffered animation
     uint8_t img[WIDTH * HEIGHT]; //internal map of pixels
     memset(img, 0, sizeof(img)); //clear the img array
     uint8_t i, j;
@@ -251,21 +244,6 @@ public:
 	grain[i].vx = grain[i].vy = 0; //init velocity to zero 
     }
    
-
-    // The square to rotate (inner square + black frame) needs to cover the
-    // whole area, even if diagnoal. Thus, when rotating, the outer pixels from
-    // the previous frame are cleared.
-    const int rotate_square = min(canvas()->width(), canvas()->height()) * 1.41;
-    const int min_rotate = cent_x - rotate_square / 2;
-    const int max_rotate = cent_x + rotate_square / 2;
-
-    // The square to display is within the visible area.
-    const int display_square = min(canvas()->width(), canvas()->height()) * 0.7;
-    const int min_display = cent_x - display_square / 2;
-    const int max_display = cent_x + display_square / 2;
-
-    const float deg_to_rad = 2 * 3.14159265 / 360;
-    int rotation = 0;
     
     //Accelerometer stuff
     int fd;
@@ -285,10 +263,14 @@ public:
     wiringPiI2CWriteReg8(fd, CNTRL_REG_4, r);
     //
 
+    //init screen to be blank
+    off_screen_canvas_->Fill(0,0,0);
 
+	//this next section is the equivalent of the loop() function in arduino
     while (running() && !interrupt_received) {
-      ++rotation;
-      usleep(14 * 1000);
+
+      //usleep(14 * 1000);
+      
       //here we go, calc next img for display
       //limit frame rate
       uint32_t t;
@@ -301,7 +283,7 @@ public:
       prevTime = t;
       
       //display from previous pass 
-      
+      off_screen_canvas_ = matrix_->SwapOnVSync(off_screen_canvas_);
 
       //read accel data
       if(wiringPiI2CReadReg8(fd, STATUS_REG) & 0x08){
@@ -332,7 +314,7 @@ public:
 	   
 	   }	
 
-	 uint8_t        i, bytes, oldidx, newidx, delta;
+	 uint8_t        i, oldidx, newidx, delta;
   int16_t        newx, newy;
   //const uint8_t *ptr = remap;
  
@@ -418,41 +400,18 @@ public:
   }     
  
      
- 
-    
-      //
-      
-      
-      
-      
-      
-      rotation %= 360;
-      for (int x = min_rotate; x < max_rotate; ++x) {
-        for (int y = min_rotate; y < max_rotate; ++y) {
-          float rot_x, rot_y;
-          Rotate(x - cent_x, y - cent_x,
-                 deg_to_rad * rotation, &rot_x, &rot_y);
-          if (x >= min_display && x < max_display &&
-              y >= min_display && y < max_display) { // within display square
-            canvas()->SetPixel(rot_x + cent_x, rot_y + cent_y,
-                               scale_col(x, min_display, max_display),
-                               255 - scale_col(y, min_display, max_display),
-                               scale_col(y, min_display, max_display));
-          } else {
-            // black frame.
-            canvas()->SetPixel(rot_x + cent_x, rot_y + cent_y, 0, 0, 0);
-          }
-        }
-      }
-  } 
+  	//Now that we've constructed the image, loop and update it at the top of the next loop for timing reasons
+ 	for (int m = 0; m < 64 ; ++m){
+		for (int n = 0; n  < 64; ++n){
+			off_screen_canvas_->SetPixel(img[x], img[y], 0, 0, 255);
+		}
+	}
+    } 
   }
 
 private:
-  void Rotate(int x, int y, float angle,
-              float *new_x, float *new_y) {
-    *new_x = x * cosf(angle) - y * sinf(angle);
-    *new_y = x * sinf(angle) + y * cosf(angle);
-  }
+  RGBMatrix *const matrix_;
+  FrameCanvas *off_screen_canvas_;
 };
 
 class ImageScroller : public ThreadedCanvasManipulator {
@@ -1414,7 +1373,7 @@ int main(int argc, char *argv[]) {
   ThreadedCanvasManipulator *image_gen = NULL;
   switch (demo) {
   case 0:
-    image_gen = new RotatingBlockGenerator(canvas);
+    image_gen = new RotatingBlockGenerator(matrix);
     break;
 
   case 1:
