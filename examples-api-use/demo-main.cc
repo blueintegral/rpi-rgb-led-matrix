@@ -788,7 +788,31 @@ public:
     while (running() && !interrupt_received) {
 
        //Calculate new grain positions
-    //read accel data
+    
+      updateValues();
+
+      for (int x=0; x<width_; ++x) {
+        for (int y=0; y<height_; ++y) {
+          if (values_[x][y])
+            canvas()->SetPixel(x, y, r_, g_, b_);
+          else
+            canvas()->SetPixel(x, y, 0, 0, 0);
+        }
+      }
+      usleep(delay_ms_ * 1000); // ms
+    }
+  }
+
+private:
+  void updateValues() {
+    // Copy values to newValues
+    for (int x=0; x<width_; ++x) {
+      for (int y=0; y<height_; ++y) {
+        newValues_[x][y] = values_[x][y];
+      }
+    }
+
+   //read accel data
           if(wiringPiI2CReadReg8(fd, STATUS_REG) & 0x08){
             x = (wiringPiI2CReadReg8(fd, X_REG_HI) << 8) | wiringPiI2CReadReg8(fd, X_REG_LO);
             y = (wiringPiI2CReadReg8(fd, Y_REG_HI) << 8) | wiringPiI2CReadReg8(fd, Y_REG_LO);
@@ -842,7 +866,7 @@ public:
         oldidx = (grain[i].y/256) * WIDTH + (grain[i].x/256); // Prior pixel #
         newidx = (newy      /256) * WIDTH + (newx      /256); // New pixel #
         if((oldidx != newidx) && // If grain is moving to a new pixel...
-            values_[newx / 256][newy / 256]) {       // but if that pixel is already occupied...
+            newValues_[newx / 256][newy / 256]) {       // but if that pixel is already occupied...
           delta = abs(newidx - oldidx); // What direction when blocked?
           if(delta == 1) {            // 1 pixel left or right)
             newx         = grain[i].x;  // Cancel X motion
@@ -859,12 +883,12 @@ public:
             // change the pixel index, no need to check that again.
             if((abs(grain[i].vx) - abs(grain[i].vy)) >= 0) { // X axis is faster
               newidx = (grain[i].y / 256) * WIDTH + (newx / 256);
-              if(!values_[newx / 256][newy / 256]) { // That pixel's free!  Take it!  But...
+              if(!newValues_[newx / 256][newy / 256]) { // That pixel's free!  Take it!  But...
                 newy         = grain[i].y; // Cancel Y motion
                 grain[i].vy /= -2;         // and bounce Y velocity
               } else { // X pixel is taken, so try Y...
                 newidx = (newy / 256) * WIDTH + (grain[i].x / 256);
-                if(!values_[newx / 256][newy / 256]) { // Pixel is free, take it, but first...
+                if(!newValues_[newx / 256][newy / 256]) { // Pixel is free, take it, but first...
                   newx         = grain[i].x; // Cancel X motion
                   grain[i].vx /= -2;         // and bounce X velocity
                 } else { // Both spots are occupied
@@ -877,12 +901,12 @@ public:
               }
             } else { // Y axis is faster, start there
               newidx = (newy / 256) * WIDTH + (grain[i].x / 256);
-              if(!values_[newx / 256][newy / 256]) { // Pixel's free!  Take it!  But...
+              if(!newValues_[newx / 256][newy / 256]) { // Pixel's free!  Take it!  But...
                 newx         = grain[i].x; // Cancel X motion
                 grain[i].vy /= -2;         // and bounce X velocity
               } else { // Y pixel is taken, so try X...
                 newidx = (grain[i].y / 256) * WIDTH + (newx / 256);
-                if(!values_[newx / 256][newy / 256]) { // Pixel is free, take it, but first...
+                if(!newValues_[newx / 256][newy / 256]) { // Pixel is free, take it, but first...
                   newy         = grain[i].y; // Cancel Y motion
                   grain[i].vy /= -2;         // and bounce Y velocity
                 } else { // Both spots are occupied
@@ -898,33 +922,9 @@ public:
         }
         grain[i].x  = newx; // Update grain position
         grain[i].y  = newy;
-        values_[grain[i].x / 256][grain[i].y / 256] = 0;    // Clear old spot (might be same as new, that's OK)
-        values_[newx / 256][newy / 256] = 255;  // Set new spot
+        newValues_[grain[i].x / 256][grain[i].y / 256] = 0;    // Clear old spot (might be same as new, that's OK)
+        newValues_[newx / 256][newy / 256] = 255;  // Set new spot
       }
-
-
-      for (int x=0; x<width_; ++x) {
-        for (int y=0; y<height_; ++y) {
-          if (values_[x][y])
-            canvas()->SetPixel(x, y, r_, g_, b_);
-          else
-            canvas()->SetPixel(x, y, 0, 0, 0);
-        }
-      }
-      usleep(delay_ms_ * 1000); // ms
-    }
-  }
-
-private:
-  void updateValues() {
-    // Copy values to newValues
-    for (int x=0; x<width_; ++x) {
-      for (int y=0; y<height_; ++y) {
-        newValues_[x][y] = values_[x][y];
-      }
-    }
-
-   
 
     // copy newValues to values
     for (int x=0; x<width_; ++x) {
