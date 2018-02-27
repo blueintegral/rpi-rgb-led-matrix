@@ -525,7 +525,7 @@ public:
 
 
      //Setup parameters of the sand
-    #define N_GRAINS 0
+    #define N_GRAINS 2
     #define WIDTH 64
     #define HEIGHT 64
     #define MAX_FPS 45
@@ -721,8 +721,10 @@ private:
         }
         grain[i].x  = newx; // Update grain position
         grain[i].y  = newy;
-        newValues_[grain[i].x / 256][grain[i].y / 256] = 0;    // Clear old spot (might be same as new, that's OK)
-        newValues_[newx / 256][newy / 256] = 255;  // Set new spot
+	// newValues_[grain[i].x / 256][grain[i].y / 256] = 0;    // Clear old spot (might be same as new, that's OK)
+        //newValues_[newx / 256][newy / 256] = 255;  // Set new spot
+      	newValues_[oldidx % WIDTH][(int)(oldidx/WIDTH)] = 0;
+	newValues_[newidx % WIDTH][(int)(newidx/WIDTH)] = 255;
       }
 
     // copy newValues to values
