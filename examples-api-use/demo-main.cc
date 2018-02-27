@@ -787,30 +787,7 @@ public:
 
     while (running() && !interrupt_received) {
 
-      //updateValues();
-
-      for (int x=0; x<width_; ++x) {
-        for (int y=0; y<height_; ++y) {
-          if (values_[x][y])
-            canvas()->SetPixel(x, y, r_, g_, b_);
-          else
-            canvas()->SetPixel(x, y, 0, 0, 0);
-        }
-      }
-      usleep(delay_ms_ * 1000); // ms
-    }
-  }
-
-private:
-  void updateValues() {
-    // Copy values to newValues
-    for (int x=0; x<width_; ++x) {
-      for (int y=0; y<height_; ++y) {
-        newValues_[x][y] = values_[x][y];
-      }
-    }
-
-    //Calculate new grain positions
+       //Calculate new grain positions
     //read accel data
           if(wiringPiI2CReadReg8(fd, STATUS_REG) & 0x08){
             x = (wiringPiI2CReadReg8(fd, X_REG_HI) << 8) | wiringPiI2CReadReg8(fd, X_REG_LO);
@@ -925,6 +902,29 @@ private:
         newValues_[newx / 256][newy / 256] = 255;  // Set new spot
       }
 
+
+      for (int x=0; x<width_; ++x) {
+        for (int y=0; y<height_; ++y) {
+          if (values_[x][y])
+            canvas()->SetPixel(x, y, r_, g_, b_);
+          else
+            canvas()->SetPixel(x, y, 0, 0, 0);
+        }
+      }
+      usleep(delay_ms_ * 1000); // ms
+    }
+  }
+
+private:
+  void updateValues() {
+    // Copy values to newValues
+    for (int x=0; x<width_; ++x) {
+      for (int y=0; y<height_; ++y) {
+        newValues_[x][y] = values_[x][y];
+      }
+    }
+
+   
 
     // copy newValues to values
     for (int x=0; x<width_; ++x) {
