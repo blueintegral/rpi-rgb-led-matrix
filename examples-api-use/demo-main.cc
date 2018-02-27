@@ -525,7 +525,7 @@ public:
 
 
      //Setup parameters of the sand
-    #define N_GRAINS 2
+    #define N_GRAINS 20
     #define WIDTH 64
     #define HEIGHT 64
     #define MAX_FPS 45
@@ -588,7 +588,7 @@ public:
 
        //Calculate new grain positions
     
-      updateValues();
+      //updateValues();
 
       for (int x=0; x<width_; ++x) {
         for (int y=0; y<height_; ++y) {
@@ -598,7 +598,8 @@ public:
             canvas()->SetPixel(x, y, 0, 0, 0);
         }
       }
-      usleep(delay_ms_ * 1000); // ms
+      updateValues();
+      //usleep(delay_ms_ * 1000); // ms
     }
   }
 
@@ -721,6 +722,7 @@ private:
         }
         grain[i].x  = newx; // Update grain position
         grain[i].y  = newy;
+	//uncomment lines below to put trails on grains
 	// newValues_[grain[i].x / 256][grain[i].y / 256] = 0;    // Clear old spot (might be same as new, that's OK)
         //newValues_[newx / 256][newy / 256] = 255;  // Set new spot
       	newValues_[oldidx % WIDTH][(int)(oldidx/WIDTH)] = 0;
