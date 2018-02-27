@@ -783,17 +783,6 @@ public:
     delete [] newValues_;
   }
 
-
-  void printmem(int matrix[64][64]){
-  	int i, j;
-	for(i = 0; i < 64; ++i){
-		for(j = 0; j < 64; ++j){
-			printf("%d ", matrix[i][j]);
-			printf("\n");
-		}
-	}
-  }
-
   void Run() {
 
     while (running() && !interrupt_received) {
@@ -813,43 +802,6 @@ public:
   }
 
 private:
-  int numAliveNeighbours(int x, int y) {
-    int num=0;
-    if (torus_) {
-      // Edges are connected (torus)
-      num += values_[(x-1+width_)%width_][(y-1+height_)%height_];
-      num += values_[(x-1+width_)%width_][y                    ];
-      num += values_[(x-1+width_)%width_][(y+1        )%height_];
-      num += values_[(x+1       )%width_][(y-1+height_)%height_];
-      num += values_[(x+1       )%width_][y                    ];
-      num += values_[(x+1       )%width_][(y+1        )%height_];
-      num += values_[x                  ][(y-1+height_)%height_];
-      num += values_[x                  ][(y+1        )%height_];
-    }
-    else {
-      // Edges are not connected (no torus)
-      if (x>0) {
-        if (y>0)
-          num += values_[x-1][y-1];
-        if (y<height_-1)
-          num += values_[x-1][y+1];
-        num += values_[x-1][y];
-      }
-      if (x<width_-1) {
-        if (y>0)
-          num += values_[x+1][y-1];
-        if (y<31)
-          num += values_[x+1][y+1];
-        num += values_[x+1][y];
-      }
-      if (y>0)
-        num += values_[x][y-1];
-      if (y<height_-1)
-        num += values_[x][y+1];
-    }
-    return num;
-  }
-
   void updateValues() {
     // Copy values to newValues
     for (int x=0; x<width_; ++x) {
@@ -857,22 +809,123 @@ private:
         newValues_[x][y] = values_[x][y];
       }
     }
-    // update newValues based on values
-    for (int x=0; x<width_; ++x) {
-      for (int y=0; y<height_; ++y) {
-        int num = numAliveNeighbours(x,y);
-        if (values_[x][y]) {
-          // cell is alive
-          if (num < 2 || num > 3)
-            newValues_[x][y] = 0;
+
+    //Calculate new grain positions
+    //read accel data
+          if(wiringPiI2CReadReg8(fd, STATUS_REG) & 0x08){
+            x = (wiringPiI2CReadReg8(fd, X_REG_HI) << 8) | wiringPiI2CReadReg8(fd, X_REG_LO);
+            y = (wiringPiI2CReadReg8(fd, Y_REG_HI) << 8) | wiringPiI2CReadReg8(fd, Y_REG_LO);
+            z = (wiringPiI2CReadReg8(fd, Z_REG_HI) << 8) | wiringPiI2CReadReg8(fd, Z_REG_LO);
+          }    
+         //convert data
+         int16_t ax = -y / 256;
+         int16_t ay = -x / 256;
+         int16_t az = abs(z) / 2048;
+         az = (az >= 3) ? 1 : 4 - az;
+         ax -= az;
+         ay -= az;
+         int16_t az2 = az * 2 + 1;
+
+        int32_t v2;
+        float v;
+         for(int i = 0; i<N_GRAINS; i++){
+            grain[i].vx += ax + (rand() % az2);
+            grain[i].vy += ay + (rand() % az2);
+            v2 = (int32_t)grain[i].vx*grain[i].vx+(int32_t)grain[i].vy*grain[i].vy;
+            if(v2 > 65536) {
+              v = sqrt((float)v2);
+        grain[i].vx = (int)(256.0*(float)grain[i].vx/v);
+        grain[i].vy = (int)(256.0*(float)grain[i].vy/v);
+            }
+         
+         }  
+
+       uint8_t        i, oldidx, newidx, delta;
+      int16_t        newx, newy;
+      //const uint8_t *ptr = remap;
+     
+      for(i=0; i<N_GRAINS; i++) {
+        newx = grain[i].x + grain[i].vx; // New position in grain space
+        newy = grain[i].y + grain[i].vy;
+        if(newx > MAX_X) {               // If grain would go out of bounds
+          newx         = MAX_X;          // keep it inside, and
+          grain[i].vx /= -2;             // give a slight bounce off the wall
+        } else if(newx < 0) {
+          newx         = 0;
+          grain[i].vx /= -2;
         }
-        else {
-          // cell is dead
-          if (num == 3)
-            newValues_[x][y] = 1;
+        if(newy > MAX_Y) {
+          newy         = MAX_Y;
+          grain[i].vy /= -2;
+        } else if(newy < 0) {
+          newy         = 0;
+          grain[i].vy /= -2;
         }
+     
+        oldidx = (grain[i].y/256) * WIDTH + (grain[i].x/256); // Prior pixel #
+        newidx = (newy      /256) * WIDTH + (newx      /256); // New pixel #
+        if((oldidx != newidx) && // If grain is moving to a new pixel...
+            newValues_[newx / 256][newy / 256]) {       // but if that pixel is already occupied...
+          delta = abs(newidx - oldidx); // What direction when blocked?
+          if(delta == 1) {            // 1 pixel left or right)
+            newx         = grain[i].x;  // Cancel X motion
+            grain[i].vx /= -2;          // and bounce X velocity (Y is OK)
+            newidx       = oldidx;      // No pixel change
+          } else if(delta == WIDTH) { // 1 pixel up or down
+            newy         = grain[i].y;  // Cancel Y motion
+            grain[i].vy /= -2;          // and bounce Y velocity (X is OK)
+            newidx       = oldidx;      // No pixel change
+          } else { // Diagonal intersection is more tricky...
+            // Try skidding along just one axis of motion if possible (start w/
+            // faster axis).  Because we've already established that diagonal
+            // (both-axis) motion is occurring, moving on either axis alone WILL
+            // change the pixel index, no need to check that again.
+            if((abs(grain[i].vx) - abs(grain[i].vy)) >= 0) { // X axis is faster
+              newidx = (grain[i].y / 256) * WIDTH + (newx / 256);
+              if(!newValues_[newx / 256][newy / 256]) { // That pixel's free!  Take it!  But...
+                newy         = grain[i].y; // Cancel Y motion
+                grain[i].vy /= -2;         // and bounce Y velocity
+              } else { // X pixel is taken, so try Y...
+                newidx = (newy / 256) * WIDTH + (grain[i].x / 256);
+                if(!newValues_[newx / 256][newy / 256]) { // Pixel is free, take it, but first...
+                  newx         = grain[i].x; // Cancel X motion
+                  grain[i].vx /= -2;         // and bounce X velocity
+                } else { // Both spots are occupied
+                  newx         = grain[i].x; // Cancel X & Y motion
+                  newy         = grain[i].y;
+                  grain[i].vx /= -2;         // Bounce X & Y velocity
+                  grain[i].vy /= -2;
+                  newidx       = oldidx;     // Not moving
+                }
+              }
+            } else { // Y axis is faster, start there
+              newidx = (newy / 256) * WIDTH + (grain[i].x / 256);
+              if(!newValues_[newx / 256][newy / 256]) { // Pixel's free!  Take it!  But...
+                newx         = grain[i].x; // Cancel X motion
+                grain[i].vy /= -2;         // and bounce X velocity
+              } else { // Y pixel is taken, so try X...
+                newidx = (grain[i].y / 256) * WIDTH + (newx / 256);
+                if(!newValues_[newx / 256][newy / 256]) { // Pixel is free, take it, but first...
+                  newy         = grain[i].y; // Cancel Y motion
+                  grain[i].vy /= -2;         // and bounce Y velocity
+                } else { // Both spots are occupied
+                  newx         = grain[i].x; // Cancel X & Y motion
+                  newy         = grain[i].y;
+                  grain[i].vx /= -2;         // Bounce X & Y velocity
+                  grain[i].vy /= -2;
+                  newidx       = oldidx;     // Not moving
+                }
+              }
+            }
+          }
+        }
+        grain[i].x  = newx; // Update grain position
+        grain[i].y  = newy;
+        newValues_[grain[i].x / 256][grain[i].y / 256] = 0;    // Clear old spot (might be same as new, that's OK)
+        newValues_[newx / 256][newy / 256] = 255;  // Set new spot
       }
-    }
+
+
     // copy newValues to values
     for (int x=0; x<width_; ++x) {
       for (int y=0; y<height_; ++y) {
