@@ -702,7 +702,7 @@ public:
     srand(time(NULL));
     for (int x=0; x<width_; ++x) {
       for (int y=0; y<height_; ++y) {
-        values_[x][y]=rand()%2;
+        //values_[x][y]=rand()%2;
       }
     }
     r_ = rand()%255;
@@ -723,6 +723,52 @@ public:
         break;
       }
     }
+
+
+     //Setup parameters of the sand
+    #define N_GRAINS 20
+    #define WIDTH 64
+    #define HEIGHT 64
+    #define MAX_FPS 45
+
+    //The sand grains live in a coordinate space 256x bigger than the pixel grid, so we can calculate stuff on a sub-pixel level
+    #define MAX_X (WIDTH * 256 - 1)
+    #define MAX_Y (HEIGHT * 256 -1)
+    struct Grain {
+      int16_t x, y; //position
+      int16_t vx, vy; //velocity
+    } grain[N_GRAINS];
+
+    for(i=0; i<N_GRAINS; i++){
+      do {
+      grain[i].x = rand() % ((WIDTH * 256)+1);
+      grain[i].y = rand() % ((HEIGHT * 256) + 1); //assign grain to a random place
+      //now make sure there's nothing already there
+      for(j=0; (j<i) && (((grain[i].x / 256) != (grain[j].x / 256)) || ((grain[i].y / 256) != (grain[j].y / 256))); j++);
+      } while(j < i); //keep trying until an open spot is found
+
+      _values[grain[i].x / 256][(grain[i].y / 256) * WIDTH] = 1; //mark that pixel
+      grain[i].vx = grain[i].vy = 0; //init velocity to zero 
+    }
+
+
+    //Accelerometer stuff
+    int fd;
+    uint8_t x, y, z;
+    fd = wiringPiI2CSetup(ACCEL_ADDR);
+    printf("Init result: %d", fd);
+    printf("Device ID: %d", wiringPiI2CReadReg8(fd, WHO_AM_I));
+    //enable all axes, set data rate to 10 hz, disable low power mode
+    wiringPiI2CWriteReg8(fd, CNTRL_REG_1, 0x07 | (0x07 << 4));
+    //set resolution, endianness, scale
+    wiringPiI2CWriteReg8(fd, CNTRL_REG_4, 0x88);
+    //enable ADCs
+    wiringPiI2CWriteReg8(fd, REG_TEMPCFG, 0x80);
+    uint8_t r = wiringPiI2CReadReg8(fd, CNTRL_REG_4);
+    r &= ~(0x30);
+    r |= 0x01 << 4;
+    wiringPiI2CWriteReg8(fd, CNTRL_REG_4, r);
+
   }
 
   ~GameLife() {
@@ -737,9 +783,10 @@ public:
   }
 
   void Run() {
+
     while (running() && !interrupt_received) {
 
-      updateValues();
+      //updateValues();
 
       for (int x=0; x<width_; ++x) {
         for (int y=0; y<height_; ++y) {
