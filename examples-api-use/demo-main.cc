@@ -943,6 +943,12 @@ private:
   int width_;
   int height_;
   bool torus_;
+  int fd;
+  uint8_t x, y, z;
+  struct Grain {
+      int16_t x, y; //position
+      int16_t vx, vy; //velocity
+    } grain[N_GRAINS];
 };
 
 // Langton's ant
