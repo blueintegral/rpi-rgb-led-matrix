@@ -702,7 +702,7 @@ public:
     srand(time(NULL));
     for (int x=0; x<width_; ++x) {
       for (int y=0; y<height_; ++y) {
-        //values_[x][y]=rand()%2;
+       // values_[x][y]=rand()%2;
       }
     }
     r_ = rand()%255;
@@ -738,6 +738,7 @@ public:
       int16_t x, y; //position
       int16_t vx, vy; //velocity
     } grain[N_GRAINS];
+    uint8_t i, j;
 
     for(i=0; i<N_GRAINS; i++){
       do {
@@ -747,7 +748,7 @@ public:
       for(j=0; (j<i) && (((grain[i].x / 256) != (grain[j].x / 256)) || ((grain[i].y / 256) != (grain[j].y / 256))); j++);
       } while(j < i); //keep trying until an open spot is found
 
-      _values[grain[i].x / 256][(grain[i].y / 256) * WIDTH] = 1; //mark that pixel
+      values_[grain[i].x / 256][(grain[i].y / 256)] = 1; //mark that pixel
       grain[i].vx = grain[i].vy = 0; //init velocity to zero 
     }
 
@@ -780,6 +781,17 @@ public:
       delete [] newValues_[x];
     }
     delete [] newValues_;
+  }
+
+
+  void printmem(int matrix[64][64]){
+  	int i, j;
+	for(i = 0; i < 64; ++i){
+		for(j = 0; j < 64; ++j){
+			printf("%d ", matrix[i][j]);
+			printf("\n");
+		}
+	}
   }
 
   void Run() {
