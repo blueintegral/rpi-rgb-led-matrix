@@ -525,7 +525,7 @@ public:
 
 
      //Setup parameters of the sand
-    #define N_GRAINS 20
+    #define N_GRAINS 0
     #define WIDTH 64
     #define HEIGHT 64
     #define MAX_FPS 45
@@ -592,11 +592,7 @@ public:
 
        //Calculate new grain positions
     
-<<<<<<< HEAD
       
-=======
-      //updateValues();
->>>>>>> d21cd021f7315c17a20c5323f196352d3f877f6f
 
       for (int x=0; x<width_; ++x) {
         for (int y=0; y<height_; ++y) {
@@ -607,11 +603,7 @@ public:
         }
       }
       updateValues();
-<<<<<<< HEAD
       usleep(delay_ms_ * 1000); // ms
-=======
-      //usleep(delay_ms_ * 1000); // ms
->>>>>>> d21cd021f7315c17a20c5323f196352d3f877f6f
     }
   }
 
@@ -731,7 +723,6 @@ private:
             }
           }
         }
-<<<<<<< HEAD
       }
     }
     grain[i].x  = newx; // Update grain position
@@ -742,15 +733,6 @@ private:
 
        // newValues_[grain[i].x / 256][grain[i].y / 256] = 0;    // Clear old spot (might be same as new, that's OK)
        // newValues_[newx / 256][newy / 256] = 255;  // Set new spot
-=======
-        grain[i].x  = newx; // Update grain position
-        grain[i].y  = newy;
-	//uncomment lines below to put trails on grains
-	// newValues_[grain[i].x / 256][grain[i].y / 256] = 0;    // Clear old spot (might be same as new, that's OK)
-        //newValues_[newx / 256][newy / 256] = 255;  // Set new spot
-      	newValues_[oldidx % WIDTH][(int)(oldidx/WIDTH)] = 0;
-	newValues_[newidx % WIDTH][(int)(newidx/WIDTH)] = 255;
->>>>>>> d21cd021f7315c17a20c5323f196352d3f877f6f
       }
 
     // copy newValues to values
