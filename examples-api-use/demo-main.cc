@@ -525,7 +525,7 @@ public:
 
 
      //Setup parameters of the sand
-    #define N_GRAINS 0
+    #define N_GRAINS 20
     #define WIDTH 64
     #define HEIGHT 64
     #define MAX_FPS 45
