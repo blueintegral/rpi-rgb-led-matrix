@@ -525,7 +525,7 @@ public:
 
 
      //Setup parameters of the sand
-    #define N_GRAINS 0
+    #define N_GRAINS 20
     #define WIDTH 64
     #define HEIGHT 64
     #define MAX_FPS 45
@@ -538,6 +538,8 @@ public:
       int16_t vx, vy; //velocity
     } grain[N_GRAINS];
     uint8_t i, j;
+    uint8_t img[WIDTH * HEIGHT];
+    memset(img, 0, sizeof(img));
 
     for(i=0; i<N_GRAINS; i++){
       do {
@@ -547,7 +549,9 @@ public:
       for(j=0; (j<i) && (((grain[i].x / 256) != (grain[j].x / 256)) || ((grain[i].y / 256) != (grain[j].y / 256))); j++);
       } while(j < i); //keep trying until an open spot is found
 
-      values_[grain[i].x / 256][(grain[i].y / 256)] = 1; //mark that pixel
+      //values_[grain[i].x / 256][(grain[i].y / 256)] = 1; //mark that pixel
+        img[(grain[i].y / 256) * WIDTH + (grain[i].x / 256)] = 255; //mark that pixel
+
       grain[i].vx = grain[i].vy = 0; //init velocity to zero 
     }
 
@@ -588,17 +592,26 @@ public:
 
        //Calculate new grain positions
     
-      updateValues();
+<<<<<<< HEAD
+      
+=======
+      //updateValues();
+>>>>>>> d21cd021f7315c17a20c5323f196352d3f877f6f
 
       for (int x=0; x<width_; ++x) {
         for (int y=0; y<height_; ++y) {
-          if (values_[x][y])
+          if (img[y*WIDTH + x])
             canvas()->SetPixel(x, y, r_, g_, b_);
           else
             canvas()->SetPixel(x, y, 0, 0, 0);
         }
       }
+      updateValues();
+<<<<<<< HEAD
       usleep(delay_ms_ * 1000); // ms
+=======
+      //usleep(delay_ms_ * 1000); // ms
+>>>>>>> d21cd021f7315c17a20c5323f196352d3f877f6f
     }
   }
 
@@ -612,10 +625,11 @@ private:
     }
 
    //read accel data
+          int16_t accelx = 0, accely = 0, accelz = 0;
           if(wiringPiI2CReadReg8(fd, STATUS_REG) & 0x08){
-            x = (wiringPiI2CReadReg8(fd, X_REG_HI) << 8) | wiringPiI2CReadReg8(fd, X_REG_LO);
-            y = (wiringPiI2CReadReg8(fd, Y_REG_HI) << 8) | wiringPiI2CReadReg8(fd, Y_REG_LO);
-            z = (wiringPiI2CReadReg8(fd, Z_REG_HI) << 8) | wiringPiI2CReadReg8(fd, Z_REG_LO);
+            accelx = (wiringPiI2CReadReg8(fd, X_REG_HI) << 8) | wiringPiI2CReadReg8(fd, X_REG_LO);
+            accely = (wiringPiI2CReadReg8(fd, Y_REG_HI) << 8) | wiringPiI2CReadReg8(fd, Y_REG_LO);
+            accelz = (wiringPiI2CReadReg8(fd, Z_REG_HI) << 8) | wiringPiI2CReadReg8(fd, Z_REG_LO);
           }    
          //convert data
          int16_t ax = -y / 256;
@@ -665,64 +679,78 @@ private:
         oldidx = (grain[i].y/256) * WIDTH + (grain[i].x/256); // Prior pixel #
         newidx = (newy      /256) * WIDTH + (newx      /256); // New pixel #
         if((oldidx != newidx) && // If grain is moving to a new pixel...
-            newValues_[newx / 256][newy / 256]) {       // but if that pixel is already occupied...
-          delta = abs(newidx - oldidx); // What direction when blocked?
-          if(delta == 1) {            // 1 pixel left or right)
-            newx         = grain[i].x;  // Cancel X motion
-            grain[i].vx /= -2;          // and bounce X velocity (Y is OK)
-            newidx       = oldidx;      // No pixel change
-          } else if(delta == WIDTH) { // 1 pixel up or down
-            newy         = grain[i].y;  // Cancel Y motion
-            grain[i].vy /= -2;          // and bounce Y velocity (X is OK)
-            newidx       = oldidx;      // No pixel change
-          } else { // Diagonal intersection is more tricky...
-            // Try skidding along just one axis of motion if possible (start w/
-            // faster axis).  Because we've already established that diagonal
-            // (both-axis) motion is occurring, moving on either axis alone WILL
-            // change the pixel index, no need to check that again.
-            if((abs(grain[i].vx) - abs(grain[i].vy)) >= 0) { // X axis is faster
-              newidx = (grain[i].y / 256) * WIDTH + (newx / 256);
-              if(!newValues_[newx / 256][newy / 256]) { // That pixel's free!  Take it!  But...
-                newy         = grain[i].y; // Cancel Y motion
-                grain[i].vy /= -2;         // and bounce Y velocity
-              } else { // X pixel is taken, so try Y...
-                newidx = (newy / 256) * WIDTH + (grain[i].x / 256);
-                if(!newValues_[newx / 256][newy / 256]) { // Pixel is free, take it, but first...
-                  newx         = grain[i].x; // Cancel X motion
-                  grain[i].vx /= -2;         // and bounce X velocity
-                } else { // Both spots are occupied
-                  newx         = grain[i].x; // Cancel X & Y motion
-                  newy         = grain[i].y;
-                  grain[i].vx /= -2;         // Bounce X & Y velocity
-                  grain[i].vy /= -2;
-                  newidx       = oldidx;     // Not moving
-                }
-              }
-            } else { // Y axis is faster, start there
-              newidx = (newy / 256) * WIDTH + (grain[i].x / 256);
-              if(!newValues_[newx / 256][newy / 256]) { // Pixel's free!  Take it!  But...
-                newx         = grain[i].x; // Cancel X motion
-                grain[i].vy /= -2;         // and bounce X velocity
-              } else { // Y pixel is taken, so try X...
-                newidx = (grain[i].y / 256) * WIDTH + (newx / 256);
-                if(!newValues_[newx / 256][newy / 256]) { // Pixel is free, take it, but first...
-                  newy         = grain[i].y; // Cancel Y motion
-                  grain[i].vy /= -2;         // and bounce Y velocity
-                } else { // Both spots are occupied
-                  newx         = grain[i].x; // Cancel X & Y motion
-                  newy         = grain[i].y;
-                  grain[i].vx /= -2;         // Bounce X & Y velocity
-                  grain[i].vy /= -2;
-                  newidx       = oldidx;     // Not moving
-                }
-              }
+        img[newidx]) {       // but if that pixel is already occupied...
+      delta = abs(newidx - oldidx); // What direction when blocked?
+      if(delta == 1) {            // 1 pixel left or right)
+        newx         = grain[i].x;  // Cancel X motion
+        grain[i].vx /= -2;          // and bounce X velocity (Y is OK)
+        newidx       = oldidx;      // No pixel change
+      } else if(delta == WIDTH) { // 1 pixel up or down
+        newy         = grain[i].y;  // Cancel Y motion
+        grain[i].vy /= -2;          // and bounce Y velocity (X is OK)
+        newidx       = oldidx;      // No pixel change
+      } else { // Diagonal intersection is more tricky...
+        // Try skidding along just one axis of motion if possible (start w/
+        // faster axis).  Because we've already established that diagonal
+        // (both-axis) motion is occurring, moving on either axis alone WILL
+        // change the pixel index, no need to check that again.
+        if((abs(grain[i].vx) - abs(grain[i].vy)) >= 0) { // X axis is faster
+          newidx = (grain[i].y / 256) * WIDTH + (newx / 256);
+          if(!img[newidx]) { // That pixel's free!  Take it!  But...
+            newy         = grain[i].y; // Cancel Y motion
+            grain[i].vy /= -2;         // and bounce Y velocity
+          } else { // X pixel is taken, so try Y...
+            newidx = (newy / 256) * WIDTH + (grain[i].x / 256);
+            if(!img[newidx]) { // Pixel is free, take it, but first...
+              newx         = grain[i].x; // Cancel X motion
+              grain[i].vx /= -2;         // and bounce X velocity
+            } else { // Both spots are occupied
+              newx         = grain[i].x; // Cancel X & Y motion
+              newy         = grain[i].y;
+              grain[i].vx /= -2;         // Bounce X & Y velocity
+              grain[i].vy /= -2;
+              newidx       = oldidx;     // Not moving
+            }
+          }
+        } else { // Y axis is faster, start there
+          newidx = (newy / 256) * WIDTH + (grain[i].x / 256);
+          if(!img[newidx]) { // Pixel's free!  Take it!  But...
+            newx         = grain[i].x; // Cancel X motion
+            grain[i].vy /= -2;         // and bounce X velocity
+          } else { // Y pixel is taken, so try X...
+            newidx = (grain[i].y / 256) * WIDTH + (newx / 256);
+            if(!img[newidx]) { // Pixel is free, take it, but first...
+              newy         = grain[i].y; // Cancel Y motion
+              grain[i].vy /= -2;         // and bounce Y velocity
+            } else { // Both spots are occupied
+              newx         = grain[i].x; // Cancel X & Y motion
+              newy         = grain[i].y;
+              grain[i].vx /= -2;         // Bounce X & Y velocity
+              grain[i].vy /= -2;
+              newidx       = oldidx;     // Not moving
             }
           }
         }
+<<<<<<< HEAD
+      }
+    }
+    grain[i].x  = newx; // Update grain position
+    grain[i].y  = newy;
+    img[oldidx] = 0;    // Clear old spot (might be same as new, that's OK)
+    img[newidx] = 255;  // Set new spot
+
+
+       // newValues_[grain[i].x / 256][grain[i].y / 256] = 0;    // Clear old spot (might be same as new, that's OK)
+       // newValues_[newx / 256][newy / 256] = 255;  // Set new spot
+=======
         grain[i].x  = newx; // Update grain position
         grain[i].y  = newy;
-        newValues_[grain[i].x / 256][grain[i].y / 256] = 0;    // Clear old spot (might be same as new, that's OK)
-        newValues_[newx / 256][newy / 256] = 255;  // Set new spot
+	//uncomment lines below to put trails on grains
+	// newValues_[grain[i].x / 256][grain[i].y / 256] = 0;    // Clear old spot (might be same as new, that's OK)
+        //newValues_[newx / 256][newy / 256] = 255;  // Set new spot
+      	newValues_[oldidx % WIDTH][(int)(oldidx/WIDTH)] = 0;
+	newValues_[newidx % WIDTH][(int)(newidx/WIDTH)] = 255;
+>>>>>>> d21cd021f7315c17a20c5323f196352d3f877f6f
       }
 
     // copy newValues to values
@@ -744,6 +772,7 @@ private:
   bool torus_;
   int fd;
   uint8_t x, y, z;
+  uint8_t img[WIDTH * HEIGHT];
   struct Grain {
       int16_t x, y; //position
       int16_t vx, vy; //velocity
