@@ -9,6 +9,7 @@
 #include "threaded-canvas-manipulator.h"
 #include "transformer.h"
 #include "graphics.h"
+#include "grains.h"
 
 //For accelerometer, using WiringPi
 #include <iostream>
@@ -68,10 +69,15 @@ using std::max;
 using namespace std;
 using namespace rgb_matrix;
 
-struct Grain {
-	int16_t x, y;
-	int16_t vx, vy;
-} grains[20];
+//struct Grain {
+//	int16_t x, y;
+//	int16_t vx, vy;
+//};
+
+//Grain grain[20];
+//struct Grain grain;
+//extern struct 
+//Grain grain[20];
 
 volatile bool interrupt_received = false;
 static void InterruptHandler(int signo) {
@@ -756,12 +762,14 @@ private:
   int height_;
   bool torus_;
   int fd;
+  struct Grain grain[20];
   //uint8_t x, y, z;
   int* img;
-  struct Grain { 
-	  int16_t x, y;
-	  int16_t vx, vy;
-  } grain[N_GRAINS];
+  
+  //  struct Grain { 
+//	  int16_t x, y;
+//	  int16_t vx, vy;
+//  } grain[N_GRAINS];
 
 };
 
