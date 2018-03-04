@@ -68,6 +68,11 @@ using std::max;
 using namespace std;
 using namespace rgb_matrix;
 
+struct Grain {
+	int16_t x, y;
+	int16_t vx, vy;
+} grains[20];
+
 volatile bool interrupt_received = false;
 static void InterruptHandler(int signo) {
   interrupt_received = true;
@@ -533,10 +538,9 @@ public:
     //The sand grains live in a coordinate space 256x bigger than the pixel grid, so we can calculate stuff on a sub-pixel level
     #define MAX_X (WIDTH * 256 - 1)
     #define MAX_Y (HEIGHT * 256 -1)
-    struct Grain {
-      int16_t x, y; //position
-      int16_t vx, vy; //velocity
-    } grain[N_GRAINS];
+    //Grain *grain = new Grain;
+    //struct grain Grain
+    //memset(grain, 0, sizeof(Grain));
     uint8_t i, j;
     //uint8_t img;
     img = new int[WIDTH * HEIGHT];
@@ -592,7 +596,7 @@ public:
     while (running() && !interrupt_received) {
 
        //Calculate new grain positions
-    
+    updateValues();
       for (int x=0; x<width_; ++x) {
         for (int y=0; y<height_; ++y) {
           if (img[y*WIDTH + x])
@@ -601,7 +605,7 @@ public:
             canvas()->SetPixel(x, y, 0, 0, 0);
         }
       }
-      updateValues();
+      //updateValues();
       usleep(delay_ms_ * 1000); // ms
     }
   }
@@ -754,10 +758,11 @@ private:
   int fd;
   //uint8_t x, y, z;
   int* img;
-  struct Grain {
-      int16_t x, y; //position
-      int16_t vx, vy; //velocity
-    } grain[N_GRAINS];
+  struct Grain { 
+	  int16_t x, y;
+	  int16_t vx, vy;
+  } grain[N_GRAINS];
+
 };
 
 // Langton's ant
