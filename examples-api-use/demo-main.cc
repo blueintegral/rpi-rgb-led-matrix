@@ -487,23 +487,23 @@ public:
     width_ = canvas()->width();
     height_ = canvas()->height();
 
-    // Allocate memory
+ //    Allocate memory
     values_ = new int*[width_];
-    for (int x=0; x<width_; ++x) {
-      values_[x] = new int[height_];
-    }
-    newValues_ = new int*[width_];
-    for (int x=0; x<width_; ++x) {
-      newValues_[x] = new int[height_];
-    }
+    //for (int x=0; x<width_; ++x) {
+    //  values_[x] = new int[height_];
+   // }
+    //newValues_ = new int*[width_];
+    //for (int x=0; x<width_; ++x) {
+    //  newValues_[x] = new int[height_];
+   // }
 
     // Init values randomly
     srand(time(NULL));
-    for (int x=0; x<width_; ++x) {
-      for (int y=0; y<height_; ++y) {
+   // for (int x=0; x<width_; ++x) {
+   //   for (int y=0; y<height_; ++y) {
        // values_[x][y]=rand()%2;
-      }
-    }
+   //   }
+   // }
     r_ = rand()%255;
     g_ = rand()%255;
     b_ = rand()%255;
@@ -538,8 +538,9 @@ public:
       int16_t vx, vy; //velocity
     } grain[N_GRAINS];
     uint8_t i, j;
-    uint8_t img[WIDTH * HEIGHT];
-    memset(img, 0, sizeof(img));
+    //uint8_t img;
+    img = new int[WIDTH * HEIGHT];
+    memset(img, 0, sizeof(*img));
 
     for(i=0; i<N_GRAINS; i++){
       do {
@@ -558,7 +559,7 @@ public:
 
     //Accelerometer stuff
     int fd;
-    uint8_t x, y, z;
+    //uint8_t x, y, z;
     fd = wiringPiI2CSetup(ACCEL_ADDR);
     printf("Init result: %d", fd);
     printf("Device ID: %d", wiringPiI2CReadReg8(fd, WHO_AM_I));
@@ -572,18 +573,18 @@ public:
     r &= ~(0x30);
     r |= 0x01 << 4;
     wiringPiI2CWriteReg8(fd, CNTRL_REG_4, r);
-
+//img is correct at this point
   }
 
   ~GameLife() {
-    for (int x=0; x<width_; ++x) {
-      delete [] values_[x];
-    }
-    delete [] values_;
-    for (int x=0; x<width_; ++x) {
-      delete [] newValues_[x];
-    }
-    delete [] newValues_;
+   // for (int x=0; x<width_; ++x) {
+   //   delete [] values_[x];
+   // }
+   // delete [] values_;
+   // for (int x=0; x<width_; ++x) {
+   //   delete [] newValues_[x];
+   // }
+   // delete [] newValues_;
   }
 
   void Run() {
@@ -592,8 +593,6 @@ public:
 
        //Calculate new grain positions
     
-      
-
       for (int x=0; x<width_; ++x) {
         for (int y=0; y<height_; ++y) {
           if (img[y*WIDTH + x])
@@ -610,11 +609,11 @@ public:
 private:
   void updateValues() {
     // Copy values to newValues
-    for (int x=0; x<width_; ++x) {
-      for (int y=0; y<height_; ++y) {
-        newValues_[x][y] = values_[x][y];
-      }
-    }
+    //for (int x=0; x<width_; ++x) {
+    //  for (int y=0; y<height_; ++y) {
+    //    newValues_[x][y] = values_[x][y];
+    //  }
+   // }
 
    //read accel data
           int16_t accelx = 0, accely = 0, accelz = 0;
@@ -624,9 +623,9 @@ private:
             accelz = (wiringPiI2CReadReg8(fd, Z_REG_HI) << 8) | wiringPiI2CReadReg8(fd, Z_REG_LO);
           }    
          //convert data
-         int16_t ax = -y / 256;
-         int16_t ay = -x / 256;
-         int16_t az = abs(z) / 2048;
+         int16_t ax = -accely / 256;
+         int16_t ay = -accelx / 256;
+         int16_t az = abs(accelz) / 2048;
          az = (az >= 3) ? 1 : 4 - az;
          ax -= az;
          ay -= az;
@@ -736,15 +735,15 @@ private:
       }
 
     // copy newValues to values
-    for (int x=0; x<width_; ++x) {
-      for (int y=0; y<height_; ++y) {
-        values_[x][y] = newValues_[x][y];
-      }
-    }
+    //for (int x=0; x<width_; ++x) {
+    //  for (int y=0; y<height_; ++y) {
+     //   values_[x][y] = newValues_[x][y];
+    //  }
+    //}
   }
 
   int** values_;
-  int** newValues_;
+  //int** newValues_;
   int delay_ms_;
   int r_;
   int g_;
@@ -753,8 +752,8 @@ private:
   int height_;
   bool torus_;
   int fd;
-  uint8_t x, y, z;
-  uint8_t img[WIDTH * HEIGHT];
+  //uint8_t x, y, z;
+  int* img;
   struct Grain {
       int16_t x, y; //position
       int16_t vx, vy; //velocity
