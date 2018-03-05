@@ -602,7 +602,7 @@ public:
     while (running() && !interrupt_received) {
 
        //Calculate new grain positions
-    updateValues();
+   // updateValues();
       for (int x=0; x<width_; ++x) {
         for (int y=0; y<height_; ++y) {
           if (img[y*WIDTH + x])
@@ -611,7 +611,7 @@ public:
             canvas()->SetPixel(x, y, 0, 0, 0);
         }
       }
-      //updateValues();
+      updateValues();
       usleep(delay_ms_ * 1000); // ms
     }
   }
@@ -762,7 +762,7 @@ private:
   int height_;
   bool torus_;
   int fd;
-  struct Grain grain[20];
+  Grain grain[20];
   //uint8_t x, y, z;
   int* img;
   
